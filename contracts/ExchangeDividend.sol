@@ -3,14 +3,14 @@ pragma solidity ^0.5.16;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/ownership/Ownable.sol";
 
 /**
  * The Dividend contract does this and that...
  */
-contract ExchangeDividend {
+contract ExchangeDividend is Ownable{
 	using SafeMath for uint;
-	
+
 	struct Account {
 		address addr;
 	  	uint percent;
