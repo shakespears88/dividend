@@ -11,12 +11,9 @@ import "@openzeppelin/contracts/ownership/Ownable.sol";
 contract ExchangeDividend is Ownable{
 	using SafeMath for uint;
 
-	struct Account {
-		address addr;
-	  	uint percent;
-	}
-	mapping (address => Account) public accountMapping;
-	address[] public shaccounts;
+	address[] public shareHolders;
+	mapping (address => uint) public shareHolderPercentage;
+
 	address public basetoken;
 	address public tradetoken;
 
@@ -26,43 +23,35 @@ contract ExchangeDividend is Ownable{
 	}
 	
 
-	function disburse () public {
+	function dispense () public {
 		uint basetokenBal = ERC20(basetoken).balanceOf(address(this));
 		uint tradetokenBal = ERC20(tradetoken).balanceOf(address(this));
-  		for(uint i = 0; i < shaccounts.length; i++) {
-    		uint basetokendividend = (basetokenBal.mul(accountMapping[shaccounts[i]].percent)).div(100);
-    		uint tradetokendividend = (tradetokenBal.mul(accountMapping[shaccounts[i]].percent)).div(100);
-    		ERC20(basetoken).transfer(shaccounts[i], basetokendividend);
-    		ERC20(tradetoken).transfer(shaccounts[i], tradetokendividend);
+  		for(uint i = 0; i < shareHolders.length; i++) {
+    		uint basetokendividend = (basetokenBal.mul(shareHolderPercentage[shareHolders[i]])).div(1e18);
+    		uint tradetokendividend = (tradetokenBal.mul(shareHolderPercentage[shareHolders[i]])).div(1e18);
+    		ERC20(basetoken).transfer(shareHolders[i], basetokendividend);
+    		ERC20(tradetoken).transfer(shareHolders[i], tradetokendividend);
   		}
 	}
 
-	function setShares (address _addr, uint _percent) public {
-		require(_percent<= 100, "Should be less than 100");
-		uint total;
-		for(uint i = 0; i < shaccounts.length; i++) {
-			total = total + accountMapping[shaccounts[i]].percent;
+	function setShares (address _addr, uint _percent) public onlyOwner {
+		require(_percent<= 1e18, "Should be less than 100");
+		uint total = 0;
+		for(uint i = 0; i < shareHolders.length; i++) {
+			total = total.add(shareHolderPercentage[shareHolders[i]]);
 		}
-		require(total<= 100, "Total should be less than 100");
-		accountMapping[_addr].addr = _addr;
-        accountMapping[_addr].percent = _percent;
-		shaccounts.push(_addr);
+		require(total<= 1e18, "Total should be less than 100");
+        shareHolderPercentage[_addr] = _percent;
+		shareHolders.push(_addr);
 	}
 	
-	function getShares (address _addr) public view returns(address addr, uint percent) {
-		Account memory ac = accountMapping[_addr];
-		addr = ac.addr;
-		percent = ac.percent;
-		return (addr, percent);
+	function getShares (address _addr) public view returns(uint percent) {
+		return shareHolderPercentage[_addr];
 	}
 	
 	function getShareHolderList () public view returns( address  [] memory){
-    	return shaccounts;
+    	return shareHolders;
 		
 	}
-/*
-	function resetShareHolders () returns(bool res) public {
-		
-	}
-	*/
+
 }
