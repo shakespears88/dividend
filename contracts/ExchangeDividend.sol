@@ -8,61 +8,63 @@ import "@openzeppelin/contracts/ownership/Ownable.sol";
 /**
  * The Dividend contract does this and that...
  */
-contract ExchangeDividend is Ownable{
+contract ExchangeDividend is Ownable {
 	using SafeMath for uint;
 
-	struct Account {
-		address addr;
-	  	uint percent;
-	}
-	mapping (address => Account) public accountMapping;
-	address[] public shaccounts;
-	address public basetoken;
-	address public tradetoken;
+	address public feeDestinationOne;
+	uint public feeDestinationOnePercentage;
+	address public feeDestinationTwo;
+	uint public feeDestinationTwoPercentage;
 
-	constructor(address _basetoken, address _tradetoken) public {
-        basetoken = _basetoken;
-        tradetoken = _tradetoken;
-	}
-	
+	address[] public shareHolders;
+	mapping (address => uint) public shareHolderPercentage;
 
-	function disburse () public {
-		uint basetokenBal = ERC20(basetoken).balanceOf(address(this));
-		uint tradetokenBal = ERC20(tradetoken).balanceOf(address(this));
-  		for(uint i = 0; i < shaccounts.length; i++) {
-    		uint basetokendividend = (basetokenBal.mul(accountMapping[shaccounts[i]].percent)).div(100);
-    		uint tradetokendividend = (tradetokenBal.mul(accountMapping[shaccounts[i]].percent)).div(100);
-    		ERC20(basetoken).transfer(shaccounts[i], basetokendividend);
-    		ERC20(tradetoken).transfer(shaccounts[i], tradetokendividend);
-  		}
+	constructor(address _feeDestinationOne,
+							uint _feeDestinationOnePercentage,
+							address _feeDestinationTwo,
+							uint _feeDestinationTwoPercentage)
+							public
+	{
+		feeDestinationOne = _feeDestinationOne;
+		feeDestinationOnePercentage = _feeDestinationOnePercentage;
+		feeDestinationTwo = _feeDestinationTwo;
+		feeDestinationTwoPercentage = _feeDestinationTwoPercentage;
 	}
 
-	function setShares (address _addr, uint _percent) public {
-		require(_percent<= 100, "Should be less than 100");
-		uint total;
-		for(uint i = 0; i < shaccounts.length; i++) {
-			total = total + accountMapping[shaccounts[i]].percent;
+	function dispense (address _token) public {
+		uint amountToDisburse = ERC20(_token).balanceOf(address(this));
+		// dispense for feeDestinationOne
+		ERC20(_token).transfer(feeDestinationOne, amountToDisburse.mul(feeDestinationOnePercentage).div(1e18));
+		// dispense for feeDestinationTwo
+		ERC20(_token).transfer(feeDestinationTwo, amountToDisburse.mul(feeDestinationTwoPercentage).div(1e18));
+		// dispense for shareHolders
+		uint amountLeft = amountToDisburse.mul(uint(1e18).sub(feeDestinationOnePercentage).sub(feeDestinationTwoPercentage)).div(1e18);
+		for(uint i = 0; i < shareHolders.length; i++) {
+  		ERC20(_token).transfer(shareHolders[i], amountLeft.mul(shareHolderPercentage[shareHolders[i]]).div(1e18));
 		}
-		require(total<= 100, "Total should be less than 100");
-		accountMapping[_addr].addr = _addr;
-        accountMapping[_addr].percent = _percent;
-		shaccounts.push(_addr);
 	}
-	
-	function getShares (address _addr) public view returns(address addr, uint percent) {
-		Account memory ac = accountMapping[_addr];
-		addr = ac.addr;
-		percent = ac.percent;
-		return (addr, percent);
+
+	function setShares (address _shareHolder, uint _percentage)
+		public
+		onlyOwner
+	{
+		require(_percentage <= 1e18, "Should be less than 100 percent");
+
+		shareHolderPercentage[_shareHolder] = _percentage;
+		shareHolders.push(_shareHolder);
+
+		uint total = 0;
+		for(uint i = 0; i < shareHolders.length; i++) {
+			total = total.add(shareHolderPercentage[shareHolders[i]]);
+		}
+		require(total <= 1e18, "Total should be less than 100 percent");
 	}
-	
-	function getShareHolderList () public view returns( address  [] memory){
-    	return shaccounts;
-		
+
+	function getShares (address _shareHolder) public view returns (uint) {
+		return shareHolderPercentage[_shareHolder];
 	}
-/*
-	function resetShareHolders () returns(bool res) public {
-		
+
+	function getShareHolders () public view returns(address [] memory) {
+  	return shareHolders;
 	}
-	*/
 }
